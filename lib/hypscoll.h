@@ -1,0 +1,210 @@
+/****************************************************************/
+/*   Copyright (C) 1988 - 2012             			*/
+/*	Code Farms Inc.,  All Rights Reserved.			*/
+/****************************************************************/
+
+/* Ring sorting works like this:
+ * It finds sub-sections that are already sorted.
+ * Then it walks over the list and picks up the first two subsections,
+ * and merges them. Then it keeps walking through the list and 
+ * picks up next two subsections and merges them, and so on until 
+ * the end of list is reached. Then it starts again from the beginning,
+ * and repeats this process until all data is sorted.
+ * The advantages of this algorithm are:
+ * O(log n) complexity, no recursive function used, no additional
+ * storage or temporary stack needed.
+ * int (*cmpF)(PTR<pType)&,PTR<pType)&); compares two objects, like for qsort()
+ * The functionality is identical with DOL function orgc/lib/sortring.c from 1898. 
+ *                                       Author: Jiri Soukup, 2012
+ */
+
+#define LIGHT
+
+#ifdef LIGHT
+#define PTR PersistPtr
+#else
+#define PTR PersistVPtr
+#endif
+
+
+#define STRINGIT(A) (char*) #A
+#define MRG(A,B) A##B
+
+
+#define ZZ_HYPER_SINGLE_COLLECT(id,pType,cType)  \
+typedef int (*ppfSortFun)(const PTR<cType>,const PTR<cType>); \
+class MRG(class_,id) { \
+  PTR<cType>& head(PTR<pType> p){ \
+	  PTR<cType> c=p->MRG(_,id).tail; if(c!=NULL)return NULL; \
+          return c->MRG(_,id).next;} \
+  PTR<cType>& tail(PTR<pType> p){return p->MRG(_,id).tail;} \
+  PTR<cType>& fwd(PTR<cType> c){return c->MRG(_,id).next;}\
+  void setTail(PTR<pType> p,PTR<cType> c){p->MRG(_,id).tail = c;}\
+  void addHead(PTR<pType> p,PTR<cType> c){\
+      PTR<cType> t=p->MRG(_,id).tail;\
+      if(c->MRG(_,id).next!=NULL){\
+		  printf("PPF error: cannot add org=%s, object index=%d not disconnected\n",\
+		                                            STRINGIT(id),c.getIndex());\
+	  }\
+	  else if(t!=NULL){c->MRG(_,id).next=t->MRG(_,id).next; t->MRG(_,id).next=c;}\
+	  else {p->MRG(_,id).tail=c; c->MRG(_,id).next=c; }\
+  }\
+  void addTail(PTR<pType> p,PTR<cType> c){ addHead(p,c); p->MRG(_,id).tail=c; }\
+  void app(PTR<pType> p,PTR<cType> x,PTR<cType> y){ \
+      if(x->MRG(_,id).next==NULL || y->MRG(_,id).next!=NULL){\
+		  printf("PPF error: cannot append org=%s, objects indexes=%d,%d \n",\
+		                                            STRINGIT(id),x.getIndex(),y.getIndex());\
+	  }\
+	  else { \
+		  y->MRG(_,id).next=x->MRG(_,id).next; x->MRG(_,id).next=y; \
+		  if(p->MRG(_,id).tail==x)p->MRG(_,id).tail=y;\
+	  }\
+  }\
+  void del(PTR<pType> p,PTR<cType> c){\
+      PTR<cType> x=c->MRG(_,id).next; PTR<cType> t=p->MRG(_,id).tail;\
+	  if(x==NULL || t==NULL)return; /* nothing to do */\
+	  if(x==c){c->MRG(_,id).next=NULL; p->MRG(_,id).tail=NULL; return;} /* last item */\
+	  for(x=t; x!=c; x=x->MRG(_,id).next){\
+		  if(x->MRG(_,id).next==c)break;\
+		  if(x->MRG(_,id).next==t){\
+			   printf("PPF error: org=%s, trying to delete object=%d from a wrong parent \n",\
+		                                            STRINGIT(id),c.getIndex());\
+			   return;\
+		  }\
+	  }\
+	  x->MRG(_,id).next=c->MRG(_,id).next; c->MRG(_,id).next==NULL;\
+	  if(p->MRG(_,id).tail==c)p->MRG(_,id).tail=x;\
+  }\
+  void merge(PTR<cType> obj1,PTR<cType> obj2,PTR<pType> newPar){\
+      PTR<pType> s; PTR<cType> p; int i,j,k;\
+      i=0; s=newPar; p=obj1;\
+      if(s==NULL)i=1;\
+      else if(obj1==NULL)s->MRG(_,id).tail=obj2;\
+      else if(obj2==NULL)s->MRG(_,id).tail=obj1;\
+      else {\
+          if(p->MRG(_,id).next==NULL || obj2->MRG(_,id).next==NULL)i=1;\
+          else if(p!=obj2){\
+              for(p=obj2->MRG(_,id).next,k=j=0;;p=Zp->MRG(_,id).next){\
+                  if(s->MRG(_,id).tail==p)k=1;\
+                  if(p==obj1)j=1;\
+                  if(p==obj2)break;\
+              }\
+              if(s->MRG(_,id).tail!=NULL && k || s->MRG(_,id).tail==NULL && j){\
+                  p=obj2->MRG(_,id).next; \
+                  obj2->MRG(_,id).next=obj1->MRG(_,id).next;\
+                  obj1->MRG(_,id).next=p;\
+                  if(s->MRG(_,id).tail!=NULL)s->MRG(_,id).tail=NULL;\
+                  else {\
+                      for(p=obj2; p->MRG(_,id).next!=obj2; p=p->MRG(_,id).next)continue;\
+                      s->MRG(_,id).tail=p;\
+                  }\
+              }\
+              else i=1;\
+          }\
+      }\
+      if(ZZi)ZZmsgS(33,ZZ_STRINGIT(id));\
+      if(i)printf("cannot merge/split for %s, wrong object given\n",STRINGIT(id));\
+  }\
+    void switchParents(PTR<pType> p1,PTR<pType> p2){ \
+      PTR<cType> t=p1->MRG(_,id).tail; p1->MRG(_,id).tail=p2->MRG(_,id).tail; p2->MRG(_,id).tail=t;\
+  }\
+  void sort(ppfSortFun cmpF,PTR<pType> p){\
+      if(p==NULL)return; \
+      if(p->MGR(_,id).next==NULL)return; \
+      p->MRG(_,id).tail=ppfSortRing(cmpF,p); \
+  }\
+private: \
+    PTR(<cType> ppfSortRing(PTR<pType> tail, ppfSortFun cmpF){ /* returns the the new tail */ \
+		/* int (*cmpF)(PTR<pType>,PTR<pType>); compares two objects, like for qsort() */ \
+ 	  PTR(<cType> h1,t1,h2,t2,p,nxt,p1,p2,first,last,start,hook1,hook2; \
+ 	  int stopFlg; \
+	   \
+ 	  if(!tail)return(tail); \
+	  start=tail->MRG(_,id).next; \
+ 	  if(tail==start)return(tail); \
+		   \
+  	  /* walk through the input, insert up/down section by section */ \
+  	  for(stopFlg=0, t1=tail; !stopFlg; t1=t2){  \
+	    h2=t1->MRG(_,id).next; \
+        t2=h2; \
+		nxt=h2->MRG(_,id).next; \
+        for(p=nxt; p!=h2 ;p=nxt){ \
+          if(p==tail)stopFlg=1; \
+		  nxt=p->MRG(_,id).next; \
+		   \
+	      if((*cmpF)(p,t2)>=0)t2=p; \
+	      else if((*cmpF)(p,h2)<=0){ \
+            if(nxt==h2){h2=p; break;} \
+            else { \
+			  t2->MRG(_,id).next=nxt; t1->MRG(_,id).next=p; p->MRG(_,id).next=h2;  \
+			  h2=p; \
+			} \
+          } \
+          else break; \
+        } \
+    } \
+	nxt=t2->MRG(_,id).next; \
+    if(nxt==h2)return(t2); /* result already sorted */ \
+    start=h2; /* section may overlap the original start */   \
+	 \
+    /* keep sorting adjacent sublists until everything is one list */ \
+    for(stopFlg=0; !stopFlg;){ \
+        hook1=t2; \
+        /* find the first sublist */ \
+		h1=t2->MRG(_,id).next; \
+		nxt=h1->MRG(_,id).next; \
+        for(last=h1, p=nxt; ; last=p, p=nxt){ \
+			nxt=p->MRG(_,id).next; \
+	        if((*cmpF)(last,p)>0)break; \
+        } \
+        t1=last; h2=nxt; \
+        if(h2==h1)break; /* one sorted sublist, job finished */ \
+			 \
+        /* find the second sublist */ \
+		h2=t1->MRG(_,id).next; \
+		nxt=h2->MRG(_,id).next; \
+        for(last=h2, p=nxt; ; last=p, p=nxt){ \
+			nxt=p->MRG(_,id).next; \
+	        if((*cmpF)(last,p)>0)break; \
+        } \
+        t2=last; \
+        if(h1==p)stopFlg=1; /* these are the last two sublists */ \
+        hook2=p; \
+		 \
+		t1->MRG(_,id).next=NULL; t2->MRG(_,id).next=NULL;/* unhook both sublists */ \
+		 \
+        /* merge the two lists, new list from 'first' to 'last' */ \
+        first=last=(char *)NULL; \
+        for(p1=h1, p2=h2 ;p1||p2; last=p ){ \
+	    if(!p1)     p=p2; \
+	    else if(!p2)p=p1; \
+	    else if((*cmpF)(p1,p2)<=0)p=p1; \
+	    else p=p2; \
+     \
+		nxt=tail->MRG(_,id).p; \
+	    if(p==p1) p1=nxt; else p2=nxt; \
+            if(!first)first=p; \
+            if(last){last->MRG(_,id).next=p;} \
+        } \
+		 \
+        /* hook both list back ZZinto the main list */ \
+        if(stopFlg){last->MRG(_,id).next=first;} \
+		else { hook1->MRG(_,id).next=first; last->MRG(_,id).next=hook2; } \
+        t2=last; \
+    } \
+    return(last); /* returns the new tail */ \
+}; \
+MRG(class_,id) id; \
+class MRG(id,_iterator){ \
+   PTR<cType> beg;\
+   PTR<cType> nxt;\
+public:\
+   MRG(id,_iterator)(PTR<pType> p){start(p);}\
+   MRG(id,_iterator)(){beg=nxt=NULL;}\
+   void start(PTR<pType> p){if(p){beg=id.chld(p); if(beg)nxt=id.fwd(beg); else nxt=NULL;}\
+                                                 else beg=nxt=NULL;} \
+   PTR<cType>& operator++(){PTR<cType> c;\
+      c=nxt; if(c==beg)nxt=beg=NULL; else nxt=id.fwd(c); return(c);}\
+}
+
+#define ITERATE(A,b) while((B) = ++(A))

@@ -1,0 +1,15 @@
+rm *.ppf
+g++ -c factory.cpp
+g++ test1.cpp test1A.cpp test1B.cpp factory.o
+./a.out 1
+./a.out 2
+g++ test2.cpp test2A.cpp test2B.cpp factory.o
+./a.out 1
+./a.out 2
+g++ test3.cpp factory.o
+./a.out 1 
+ls -l pstring.ppf > strsize1
+./a.out 2
+./a.out 3
+ls -l pstring.ppf > strsize2
+diff strsize1 strsize2

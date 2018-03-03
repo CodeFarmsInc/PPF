@@ -1,0 +1,5 @@
+rm *.ppf
+g++ -c factory.cpp
+g++ test1.cpp test1A.cpp test1B.cpp factory.o
+./a.out 1
+./a.out 2

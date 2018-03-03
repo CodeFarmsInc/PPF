@@ -1,0 +1,6 @@
+        static T t; int ph=sizeof(PersistHeader);                            \
+	if(pgSz<ph)pgSz=ph;                                                  \
+	if(maxPgs==1){                                                       \
+	    if(totMem<=pgSz){totMem=pgSz=pgSz+ph;}                           \
+	    else maxPgs=2; /* all data in 1 page, or at least 2 pages needed */\
+	}                                                                    \

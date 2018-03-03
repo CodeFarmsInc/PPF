@@ -1,0 +1,5 @@
+cd ..
+del factory.obj
+cl /c factory.cpp 
+cd vector
+cl /EHsc testemb.cpp testA.cpp testE.cpp ..\factory.obj

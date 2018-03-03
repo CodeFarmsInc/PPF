@@ -1,0 +1,1 @@
+#define PPF_LIGHT
